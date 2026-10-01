@@ -1,0 +1,2205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>zorr.io - 怀谦的冒险乐园</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #1e272e;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    }
+    #game-canvas {
+      display: block;
+      width: 100vw;
+      height: 100vh;
+      touch-action: none;
+    }
+    /* UI Overlays */
+    .hud-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    .hud-interactive {
+      pointer-events: auto;
+    }
+
+    /* Top Left Level & Stats */
+    #level-panel {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      border: 2px solid #3b82f6;
+      border-radius: 14px;
+      padding: 12px 18px;
+      color: #fff;
+      min-width: 220px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    #level-panel .title {
+      font-size: 18px;
+      font-weight: 800;
+      color: #60a5fa;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    #level-panel .bar-container {
+      margin-top: 8px;
+      width: 100%;
+      height: 10px;
+      background: #334155;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    #level-panel .bar-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #60a5fa);
+      transition: width 0.2s ease;
+    }
+    #level-panel .stats {
+      margin-top: 8px;
+      font-size: 13px;
+      color: #94a3b8;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* Top Right Coins */
+    #coins-display {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      border: 2px solid #f59e0b;
+      border-radius: 20px;
+      padding: 8px 18px;
+      color: #fbbf24;
+      font-size: 18px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+
+    /* Left Middle Crafting Button (Orange) */
+    #craft-trigger {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 64px;
+      height: 64px;
+      background: linear-gradient(135deg, #f97316, #ea580c);
+      border: 3px solid #ffedd5;
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 800;
+      font-size: 13px;
+      box-shadow: 0 10px 25px rgba(234, 88, 12, 0.5);
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    #craft-trigger:active {
+      transform: translateY(-50%) scale(0.92);
+    }
+    #craft-trigger .icon {
+      font-size: 22px;
+      margin-bottom: 2px;
+    }
+
+    /* Bottom Left Inventory Button (Blue) */
+    #inv-trigger {
+      position: absolute;
+      left: 20px;
+      bottom: 20px;
+      width: 72px;
+      height: 72px;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      border: 3px solid #bfdbfe;
+      border-radius: 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 800;
+      font-size: 14px;
+      box-shadow: 0 10px 25px rgba(37, 99, 235, 0.5);
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    #inv-trigger:active {
+      transform: scale(0.92);
+    }
+    #inv-trigger .icon {
+      font-size: 24px;
+      margin-bottom: 2px;
+    }
+
+    /* Bottom Right Shop Button (Green) */
+    #shop-trigger {
+      position: absolute;
+      right: 20px;
+      bottom: 20px;
+      width: 72px;
+      height: 72px;
+      background: linear-gradient(135deg, #10b981, #059669);
+      border: 3px solid #a7f3d0;
+      border-radius: 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 800;
+      font-size: 14px;
+      box-shadow: 0 10px 25px rgba(16, 185, 129, 0.5);
+      cursor: pointer;
+      transition: transform 0.15s;
+    }
+    #shop-trigger:active {
+      transform: scale(0.92);
+    }
+    #shop-trigger .icon {
+      font-size: 24px;
+      margin-bottom: 2px;
+    }
+
+    /* Bottom Center 6 Slots */
+    #slots-bar {
+      position: absolute;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(10px);
+      padding: 10px 14px;
+      border-radius: 20px;
+      border: 2px solid #475569;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    .slot-cell {
+      width: 54px;
+      height: 54px;
+      background: #1e293b;
+      border: 2px dashed #64748b;
+      border-radius: 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .slot-cell.has-item {
+      border-style: solid;
+      background: #0f172a;
+    }
+    .slot-cell .slot-idx {
+      position: absolute;
+      top: 2px;
+      left: 4px;
+      font-size: 10px;
+      color: #64748b;
+    }
+    .slot-cell .item-icon {
+      font-size: 22px;
+    }
+    .slot-cell .item-name {
+      font-size: 9px;
+      font-weight: 700;
+      margin-top: 1px;
+    }
+
+    /* Common Modals */
+    .modal-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .modal-box {
+      background: #0f172a;
+      border: 2px solid #334155;
+      border-radius: 20px;
+      width: 90%;
+      max-width: 580px;
+      max-height: 85vh;
+      overflow-y: auto;
+      padding: 24px;
+      color: #fff;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+      position: relative;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+      border-bottom: 1px solid #1e293b;
+      padding-bottom: 12px;
+    }
+    .modal-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: #f8fafc;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .close-btn {
+      background: #1e293b;
+      border: none;
+      color: #94a3b8;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .close-btn:hover {
+      color: #fff;
+      background: #334155;
+    }
+
+    /* Inventory Grid */
+    .inv-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+      gap: 12px;
+      max-height: 50vh;
+      overflow-y: auto;
+      padding: 4px;
+    }
+    .inv-card {
+      background: #1e293b;
+      border: 2px solid #475569;
+      border-radius: 12px;
+      padding: 8px 4px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      position: relative;
+      transition: transform 0.15s, border-color 0.15s;
+    }
+    .inv-card:hover {
+      transform: translateY(-2px);
+    }
+    .inv-card .card-icon {
+      font-size: 26px;
+    }
+    .inv-card .card-name {
+      font-size: 11px;
+      font-weight: bold;
+      margin-top: 4px;
+    }
+    .inv-card .card-tier {
+      font-size: 9px;
+      padding: 1px 4px;
+      border-radius: 4px;
+      margin-top: 2px;
+    }
+    .inv-card .card-count {
+      position: absolute;
+      top: 2px;
+      right: 4px;
+      font-size: 10px;
+      background: #334155;
+      padding: 0 4px;
+      border-radius: 6px;
+      color: #cbd5e1;
+    }
+
+    /* Crafting UI */
+    .craft-section {
+      text-align: center;
+      padding: 10px 0;
+    }
+    .craft-select-box {
+      margin-bottom: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+    }
+    .craft-prob-badge {
+      display: inline-block;
+      padding: 6px 14px;
+      background: #ea580c;
+      color: #fff;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: bold;
+      margin: 12px 0;
+    }
+    .action-btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .action-btn:active {
+      transform: scale(0.98);
+    }
+    .btn-orange {
+      background: linear-gradient(135deg, #f97316, #ea580c);
+      color: #fff;
+      box-shadow: 0 8px 20px rgba(234, 88, 12, 0.4);
+    }
+    .btn-blue {
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      color: #fff;
+    }
+    .btn-green {
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: #fff;
+    }
+    .btn-red {
+      background: linear-gradient(135deg, #ef4444, #b91c1c);
+      color: #fff;
+    }
+
+    /* Shop UI */
+    .shop-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .shop-tab {
+      flex: 1;
+      padding: 10px;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      text-align: center;
+      color: #94a3b8;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .shop-tab.active {
+      background: #059669;
+      color: #fff;
+      border-color: #10b981;
+    }
+    .shop-items-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      max-height: 50vh;
+      overflow-y: auto;
+    }
+    .shop-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 14px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      position: relative;
+    }
+    .shop-card .item-preview {
+      font-size: 32px;
+      margin-bottom: 6px;
+    }
+    .shop-card .item-name {
+      font-size: 14px;
+      font-weight: bold;
+      color: #f1f5f9;
+    }
+    .shop-card .item-desc {
+      font-size: 11px;
+      color: #94a3b8;
+      margin: 4px 0 10px;
+      min-height: 28px;
+    }
+    .buy-btn {
+      padding: 8px 14px;
+      background: #10b981;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      width: 100%;
+    }
+    .buy-btn:disabled {
+      background: #475569;
+      cursor: not-allowed;
+    }
+
+    /* Account & Login Screen */
+    #login-overlay {
+      background: rgba(15, 23, 42, 0.95);
+      z-index: 200;
+    }
+    .auth-box {
+      max-width: 420px;
+      text-align: center;
+    }
+    .auth-logo {
+      font-size: 36px;
+      font-weight: 900;
+      color: #22c55e;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+    }
+    .auth-sub {
+      color: #94a3b8;
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+    .form-group {
+      margin-bottom: 14px;
+      text-align: left;
+    }
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      color: #cbd5e1;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+    .form-input {
+      width: 100%;
+      padding: 12px 14px;
+      background: #1e293b;
+      border: 1px solid #475569;
+      border-radius: 10px;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+    }
+    .form-input:focus {
+      border-color: #22c55e;
+    }
+    .auth-links {
+      margin-top: 18px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+    }
+    .auth-link {
+      color: #38bdf8;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    /* Death Screen */
+    #death-overlay {
+      background: rgba(15, 23, 42, 0.92);
+      z-index: 150;
+    }
+    .death-box {
+      text-align: center;
+      max-width: 380px;
+    }
+    .death-title {
+      font-size: 42px;
+      font-weight: 900;
+      color: #ef4444;
+      margin-bottom: 12px;
+      text-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+    }
+    .death-stats {
+      color: #cbd5e1;
+      font-size: 15px;
+      margin-bottom: 26px;
+    }
+
+    /* Virtual Joystick for touch / mobile */
+    #touch-controls {
+      display: none;
+      position: absolute;
+      bottom: 100px;
+      left: 30px;
+      width: 110px;
+      height: 110px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 2px solid rgba(255, 255, 255, 0.25);
+      border-radius: 50%;
+      pointer-events: auto;
+    }
+    #touch-stick {
+      position: absolute;
+      width: 46px;
+      height: 46px;
+      top: 32px;
+      left: 32px;
+      background: rgba(255, 255, 255, 0.4);
+      border-radius: 50%;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Game Canvas -->
+  <canvas id="game-canvas"></canvas>
+
+  <!-- HUD Layer -->
+  <div class="hud-layer">
+
+    <!-- Top-left Level Meter -->
+    <div id="level-panel" class="hud-interactive">
+      <div class="title">
+        <span>LV.<span id="ui-level">1</span></span>
+        <span id="ui-title" style="font-size:12px; font-weight:normal; color:#cbd5e1;">青涩冒险者</span>
+      </div>
+      <div class="bar-container">
+        <div id="ui-exp-fill" class="bar-fill"></div>
+      </div>
+      <div class="stats">
+        <span>HP: <strong id="ui-hp" style="color:#22c55e;">320</strong>/<span id="ui-max-hp">320</span></span>
+        <span>ATK: <strong id="ui-atk" style="color:#f87171;">10</strong></span>
+        <span>击杀: <strong id="ui-kills">0</strong></span>
+      </div>
+    </div>
+
+    <!-- Top-right Coins -->
+    <div id="coins-display" class="hud-interactive">
+      <span>🪙</span>
+      <span id="ui-coins">0</span>
+    </div>
+
+    <!-- Left-middle Orange Crafting Button -->
+    <div id="craft-trigger" class="hud-interactive" onclick="openCraftModal()">
+      <div class="icon">⚗️</div>
+      <div>合成</div>
+    </div>
+
+    <!-- Bottom-left Blue Inventory Button -->
+    <div id="inv-trigger" class="hud-interactive" onclick="openInventoryModal()">
+      <div class="icon">🎒</div>
+      <div>掉落物</div>
+    </div>
+
+    <!-- Bottom-right Green Shop Button -->
+    <div id="shop-trigger" class="hud-interactive" onclick="openShopModal()">
+      <div class="icon">🛒</div>
+      <div>商城</div>
+    </div>
+
+    <!-- Bottom-center 6 Petal Slots -->
+    <div id="slots-bar" class="hud-interactive">
+      <div class="slot-cell" id="slot-0" onclick="handleSlotClick(0)">
+        <span class="slot-idx">1</span>
+      </div>
+      <div class="slot-cell" id="slot-1" onclick="handleSlotClick(1)">
+        <span class="slot-idx">2</span>
+      </div>
+      <div class="slot-cell" id="slot-2" onclick="handleSlotClick(2)">
+        <span class="slot-idx">3</span>
+      </div>
+      <div class="slot-cell" id="slot-3" onclick="handleSlotClick(3)">
+        <span class="slot-idx">4</span>
+      </div>
+      <div class="slot-cell" id="slot-4" onclick="handleSlotClick(4)">
+        <span class="slot-idx">5</span>
+      </div>
+      <div class="slot-cell" id="slot-5" onclick="handleSlotClick(5)">
+        <span class="slot-idx">6</span>
+      </div>
+    </div>
+
+    <!-- Virtual Joystick -->
+    <div id="touch-controls">
+      <div id="touch-stick"></div>
+    </div>
+
+  </div>
+
+  <!-- Inventory Modal -->
+  <div id="inv-modal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title">🎒 我的掉落物背包</div>
+        <button class="close-btn" onclick="closeModal('inv-modal')">✕</button>
+      </div>
+      <p style="font-size:12px; color:#94a3b8; margin-bottom:12px;">点击任意物品可直接装入底部 6 个槽位；点击已装备的槽位可卸下。</p>
+      <div id="inv-container" class="inv-grid">
+        <!-- Dynamic Cards -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Crafting Modal -->
+  <div id="craft-modal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title">⚗️ 掉落物合成台</div>
+        <button class="close-btn" onclick="closeModal('craft-modal')">✕</button>
+      </div>
+      <div class="craft-section">
+        <p style="font-size:13px; color:#cbd5e1; margin-bottom:12px;">拥有 <strong>6个同等级同类型</strong> 的掉落物即可进行进阶合成！</p>
+        
+        <div id="craft-candidates" class="craft-select-box">
+          <!-- Eligible items to craft -->
+        </div>
+
+        <div id="craft-detail" style="display:none; background:#1e293b; padding:16px; border-radius:14px; margin-top:10px;">
+          <div id="craft-name-prob" class="craft-prob-badge">普通 ➔ 罕见 (概率 80%)</div>
+          <p id="craft-hint" style="font-size:12px; color:#94a3b8; margin-bottom:14px;">消耗 6 个普通掉落物，尝试合成更高品质！</p>
+          <button class="action-btn btn-orange" onclick="executeCraft()">开始融合升阶！</button>
+        </div>
+        <div id="craft-result-msg" style="margin-top:14px; font-weight:bold; font-size:15px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shop Modal -->
+  <div id="shop-modal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title">🛒 冒险补给站</div>
+        <button class="close-btn" onclick="closeModal('shop-modal')">✕</button>
+      </div>
+      
+      <div class="shop-tabs">
+        <div class="shop-tab active" onclick="switchShopTab('skins')">主题与皮肤</div>
+        <div class="shop-tab" onclick="switchShopTab('drops')">稀有掉落物</div>
+        <div class="shop-tab" onclick="switchShopTab('coins')">金币充值</div>
+      </div>
+
+      <!-- Tab 1: Skins -->
+      <div id="shop-tab-skins" class="shop-items-grid">
+        <div class="shop-card">
+          <div class="item-preview">🌌</div>
+          <div class="item-name">太空界面</div>
+          <div class="item-desc">浩瀚星海特效背景</div>
+          <button class="buy-btn" onclick="buyShopItem('theme_space', 225)">225 硬币</button>
+        </div>
+        <div class="shop-card">
+          <div class="item-preview">👽</div>
+          <div class="item-name">小绿人脸</div>
+          <div class="item-desc">神秘外星萌系笑脸皮肤</div>
+          <button class="buy-btn" onclick="buyShopItem('skin_alien', 355)">355 硬币</button>
+        </div>
+        <div class="shop-card">
+          <div class="item-preview">🐘</div>
+          <div class="item-name">无敌大胖子</div>
+          <div class="item-desc">圆滚滚超萌巨无霸笑脸</div>
+          <button class="buy-btn" onclick="buyShopItem('skin_fat', 28)">28 硬币</button>
+        </div>
+        <div class="shop-card">
+          <div class="item-preview">👑</div>
+          <div class="item-name">植物国王</div>
+          <div class="item-desc">头戴皇冠的森林领主</div>
+          <button class="buy-btn" onclick="buyShopItem('skin_king', 200)">200 硬币</button>
+        </div>
+        <div class="shop-card">
+          <div class="item-preview">🌊</div>
+          <div class="item-name">海洋世界</div>
+          <div class="item-desc">湛蓝波光灵动气泡主题</div>
+          <button class="buy-btn" onclick="buyShopItem('theme_ocean', 328)">328 硬币</button>
+        </div>
+      </div>
+
+      <!-- Tab 2: Rare Drops -->
+      <div id="shop-tab-drops" class="shop-items-grid" style="display:none;">
+        <div class="shop-card" style="border-color:#00d2d3;">
+          <div class="item-preview">🛡️</div>
+          <div class="item-name" style="color:#00d2d3;">神话 · 皮</div>
+          <div class="item-desc">加二十滴血 (神话级增益)</div>
+          <button class="buy-btn" onclick="buyDropItem('skin', 5, 150)">150 硬币</button>
+        </div>
+        <div class="shop-card" style="border-color:#ff6b81;">
+          <div class="item-preview">🍃</div>
+          <div class="item-name" style="color:#ff6b81;">究极 · 叶子</div>
+          <div class="item-desc">一秒回十滴血 (究极恢复)</div>
+          <button class="buy-btn" onclick="buyDropItem('leaf', 6, 225)">225 硬币</button>
+        </div>
+        <div class="shop-card" style="border-color:#1dd1a1;">
+          <div class="item-preview">🗡️</div>
+          <div class="item-name" style="color:#1dd1a1;">超级 · 刺</div>
+          <div class="item-desc">攻击力高达220 (致命破防)</div>
+          <button class="buy-btn" onclick="buyDropItem('stinger', 7, 352)">352 硬币</button>
+        </div>
+        <div class="shop-card" style="border-color:#7f8c8d;">
+          <div class="item-preview">☁️</div>
+          <div class="item-name" style="color:#7f8c8d;">唯一 · 棉花</div>
+          <div class="item-desc">强力吸收巨量伤害</div>
+          <button class="buy-btn" onclick="buyDropItem('cotton', 8, 400)">400 硬币</button>
+        </div>
+        <div class="shop-card" style="border-color:#ffffff;">
+          <div class="item-preview">🚀</div>
+          <div class="item-name" style="color:#ffffff;">永恒 · 导弹</div>
+          <div class="item-desc">全图毁灭级远程锁定轰炸</div>
+          <button class="buy-btn" onclick="buyDropItem('missile', 9, 1052)">1052 硬币</button>
+        </div>
+      </div>
+
+      <!-- Tab 3: Coins Recharge -->
+      <div id="shop-tab-coins" class="shop-items-grid" style="display:none;">
+        <div class="shop-card">
+          <div class="item-preview">💰</div>
+          <div class="item-name">50 硬币</div>
+          <div class="item-desc">售价 14 元人民币</div>
+          <button class="buy-btn btn-green" onclick="rechargeCoins(50, 14)">立即购买 (¥14)</button>
+        </div>
+        <div class="shop-card">
+          <div class="item-preview">💰</div>
+          <div class="item-name">100 硬币</div>
+          <div class="item-desc">售价 28 元人民币</div>
+          <button class="buy-btn btn-green" onclick="rechargeCoins(100, 28)">立即购买 (¥28)</button>
+        </div>
+        <div class="shop-card">
+          <div class="item-preview">💰</div>
+          <div class="item-name">150 硬币</div>
+          <div class="item-desc">售价 42 元人民币</div>
+          <button class="buy-btn btn-green" onclick="rechargeCoins(150, 42)">立即购买 (¥42)</button>
+        </div>
+        <div class="shop-card">
+          <div class="item-preview">💰</div>
+          <div class="item-name">200 硬币</div>
+          <div class="item-desc">售价 56 元人民币</div>
+          <button class="buy-btn btn-green" onclick="rechargeCoins(200, 56)">立即购买 (¥56)</button>
+        </div>
+        <div class="shop-card">
+          <div class="item-preview">💰</div>
+          <div class="item-name">250 硬币</div>
+          <div class="item-desc">售价 70 元人民币</div>
+          <button class="buy-btn btn-green" onclick="rechargeCoins(250, 70)">立即购买 (¥70)</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Death Screen Modal -->
+  <div id="death-overlay" class="modal-overlay">
+    <div class="death-box">
+      <div class="death-title">你死了</div>
+      <p class="death-stats">在这场战斗中，你达到了 LV.<span id="death-level">1</span><br>打败了 <span id="death-kills">0</span> 只怪物！</p>
+      <button class="action-btn btn-green" style="margin-bottom:12px;" onclick="handleRespawn()">重生</button>
+      <button class="action-btn btn-blue" onclick="handleLeaveGame()">离开游戏</button>
+    </div>
+  </div>
+
+  <!-- Account & Login Modal -->
+  <div id="login-overlay" class="modal-overlay" style="display:flex;">
+    <div class="modal-box auth-box">
+      <div class="auth-logo">zorr.io</div>
+      <div class="auth-sub">怀谦的魔法冒险世界</div>
+
+      <!-- State 1: Login Form -->
+      <div id="auth-state-login">
+        <h3 style="margin-bottom:16px; font-size:18px;">登录账户</h3>
+        <div class="form-group">
+          <label>账号</label>
+          <input type="text" id="login-user" class="form-input" placeholder="请输入游戏账号" value="william">
+        </div>
+        <div class="form-group">
+          <label>密码</label>
+          <input type="password" id="login-pwd" class="form-input" placeholder="请输入密码" value="8888">
+        </div>
+        <button class="action-btn btn-green" style="margin-top:10px;" onclick="handleLogin()">登录并载入存档</button>
+        <button class="action-btn btn-blue" style="margin-top:10px; background:#475569;" onclick="startGuestPlay()">游客模式直接开始 (不保存进度)</button>
+        <div class="auth-links">
+          <span></span>
+          <span class="auth-link" onclick="switchAuthState('register-step1')">没有账户？创建一个账户</span>
+        </div>
+      </div>
+
+      <!-- State 2: Register Step 1 -->
+      <div id="auth-state-register1" style="display:none;">
+        <h3 style="margin-bottom:16px; font-size:18px;">创建新账户 (第1步)</h3>
+        <div class="form-group">
+          <label>设定账号</label>
+          <input type="text" id="reg-user" class="form-input" placeholder="请输入新账号名称">
+        </div>
+        <div class="form-group">
+          <label>设定初始密码</label>
+          <input type="password" id="reg-init-pwd" class="form-input" placeholder="输入初始密码">
+        </div>
+        <button class="action-btn btn-blue" style="margin-top:10px;" onclick="handleRegisterContinue()">继续 ➔</button>
+        <div class="auth-links">
+          <span class="auth-link" onclick="switchAuthState('login')">返回登录</span>
+        </div>
+      </div>
+
+      <!-- State 3: Register Step 2 (3 Password verification boxes as required) -->
+      <div id="auth-state-register2" style="display:none;">
+        <h3 style="margin-bottom:14px; font-size:18px;">密码安全设置 (第2步)</h3>
+        <p style="font-size:12px; color:#94a3b8; margin-bottom:12px;">请完成三格密码安全验证</p>
+        <div class="form-group">
+          <label>第一个格子：设入您的密码</label>
+          <input type="password" id="reg-box1" class="form-input" placeholder="设入您的密码">
+        </div>
+        <div class="form-group">
+          <label>第二个格子：输入新密码</label>
+          <input type="password" id="reg-box2" class="form-input" placeholder="输入新密码">
+        </div>
+        <div class="form-group">
+          <label>第三个格子：重新输入新密码</label>
+          <input type="password" id="reg-box3" class="form-input" placeholder="重新输入新密码">
+        </div>
+        <button class="action-btn btn-green" style="margin-top:10px;" onclick="handleRegisterComplete()">完成创建并开启冒险！</button>
+        <div class="auth-links">
+          <span class="auth-link" onclick="switchAuthState('register-step1')">上一步</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================================
+       zorr.io 核心游戏架构与数据配置
+       ========================================================================== */
+
+    // 10 种品质级别与官方指定颜色
+    const RARITIES = [
+      { id: 0, name: '普通', color: '#43b581', craftProb: 80 },
+      { id: 1, name: '罕见', color: '#f1c40f', craftProb: 40 },
+      { id: 2, name: '稀有', color: '#3498db', craftProb: 20 },
+      { id: 3, name: '史诗', color: '#9b59b6', craftProb: 10 },
+      { id: 4, name: '传奇', color: '#e74c3c', craftProb: 5 },
+      { id: 5, name: '神话', color: '#00d2d3', craftProb: 2 },
+      { id: 6, name: '究极', color: '#ff6b81', craftProb: 1 },
+      { id: 7, name: '超级', color: '#1dd1a1', craftProb: 0.5 },
+      { id: 8, name: '唯一', color: '#7f8c8d', craftProb: 0.001 },
+      { id: 9, name: '永恒', color: '#ffffff', craftProb: 0 }
+    ];
+
+    // 掉落物元数据
+    const DROP_TYPES = {
+      web: { name: '网', icon: '🕸️', desc: '粘住怪物2秒' },
+      faster: { name: '更快', icon: '⚡', desc: '提高转圈速度' },
+      missile: { name: '导弹', icon: '🚀', desc: '自动发射远程攻击' },
+      cotton: { name: '棉花', icon: '☁️', desc: '吸收伤害减免' },
+      leaf: { name: '叶子', icon: '🍃', desc: '每秒回十滴血' },
+      skin: { name: '皮', icon: '🛡️', desc: '加二十滴生命值' },
+      stinger: { name: '刺', icon: '🗡️', desc: '攻击力220，生命为1' },
+      poop: { name: '粑粑', icon: '💩', desc: '使远距离怪物不攻击' }
+    };
+
+    // 怪物类型定义
+    const MONSTER_DEFS = {
+      spider: {
+        name: '蜘蛛',
+        color: '#111827',
+        drops: ['web', 'faster'],
+        drawType: 'spider'
+      },
+      dandelion: {
+        name: '蒲公英',
+        color: '#f8fafc',
+        drops: ['missile', 'cotton'],
+        drawType: 'dandelion'
+      },
+      caterpillar: {
+        name: '毛毛虫',
+        color: '#eab308',
+        drops: ['leaf', 'skin'],
+        drawType: 'caterpillar'
+      },
+      bee: {
+        name: '蜜蜂',
+        color: '#facc15',
+        drops: ['stinger'],
+        drawType: 'bee'
+      },
+      mosquito: {
+        name: '蚊子',
+        color: '#0f172a',
+        drops: ['poop'],
+        drawType: 'mosquito'
+      }
+    };
+
+    // 游戏全局状态
+    let currentUser = null;
+    let isGuest = false;
+
+    let player = {
+      x: 0,
+      y: 0,
+      radius: 26,
+      level: 1,
+      kills: 0,
+      killsForNextLevel: 5,
+      hp: 320,
+      maxHp: 320,
+      baseAtk: 10,
+      coins: 0,
+      theme: 'default',
+      skin: 'default',
+      slots: [null, null, null, null, null, null],
+      rotationSpeed: 0.04,
+      rotationAngle: 0,
+      speed: 4.2
+    };
+
+    // 玩家背包数据结构: key -> 'type_tier': count
+    let inventory = {
+      'web_0': 6,
+      'faster_0': 6,
+      'leaf_0': 6,
+      'stinger_0': 2
+    };
+
+    let monsters = [];
+    let droppedLoot = [];
+    let projectiles = [];
+    let particles = [];
+    let floatingTexts = [];
+
+    // 画布与输入
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+
+    let mouseX = width / 2;
+    let mouseY = height / 2;
+    let isMouseDown = false;
+    let keys = {};
+    let lastTime = performance.now();
+    let healTimer = 0;
+    let missileTimer = 0;
+    let spawnTimer = 0;
+    let selectedCraftItem = null;
+
+    // 音效合成器 (Web Audio API)
+    const AudioEngine = {
+      ctx: null,
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) this.ctx = new AudioContext();
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      },
+      play(freq, type = 'sine', duration = 0.15, vol = 0.15) {
+        if (!this.ctx) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+          gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + duration);
+        } catch(e) {}
+      },
+      hit() { this.play(180, 'square', 0.08, 0.1); },
+      kill() { this.play(440, 'triangle', 0.2, 0.2); setTimeout(() => this.play(880, 'triangle', 0.25, 0.2), 60); },
+      levelUp() { [330, 440, 550, 660, 880].forEach((f, i) => setTimeout(() => this.play(f, 'sine', 0.25, 0.25), i * 70)); },
+      shoot() { this.play(580, 'sawtooth', 0.12, 0.15); },
+      craftSuccess() { [523, 659, 783, 1046].forEach((f, i) => setTimeout(() => this.play(f, 'triangle', 0.3, 0.3), i * 90)); },
+      craftFail() { this.play(160, 'sawtooth', 0.35, 0.2); }
+    };
+
+    // 屏幕适配
+    function resizeCanvas() {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // 鼠标/触控监听
+    window.addEventListener('mousemove', (e) => {
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+    });
+    window.addEventListener('mousedown', () => {
+      isMouseDown = true;
+      AudioEngine.init();
+    });
+    window.addEventListener('mouseup', () => { isMouseDown = false; });
+
+    window.addEventListener('touchstart', (e) => {
+      AudioEngine.init();
+      if (e.touches.length > 0) {
+        mouseX = e.touches[0].clientX;
+        mouseY = e.touches[0].clientY;
+        isMouseDown = true;
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchmove', (e) => {
+      if (e.touches.length > 0) {
+        mouseX = e.touches[0].clientX;
+        mouseY = e.touches[0].clientY;
+      }
+    }, { passive: true });
+
+    window.addEventListener('touchend', () => { isMouseDown = false; });
+
+    window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; });
+    window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+
+    /* ==========================================================================
+       游戏核心循环与计算
+       ========================================================================== */
+
+    function getPlayerMaxHp() {
+      // 随着等级上升：320 -> 520 -> 720 (+200/级)
+      let base = 320 + (player.level - 1) * 200;
+      // 加上“皮”装备的效果：每个皮 +20 HP (品质越高额外增加)
+      player.slots.forEach(slot => {
+        if (slot && slot.type === 'skin') {
+          base += 20 * (slot.tier + 1);
+        }
+      });
+      return base;
+    }
+
+    function getPlayerAtk() {
+      // 每一级攻击力 +2
+      let atk = player.baseAtk + (player.level - 1) * 2;
+      return atk;
+    }
+
+    function getOrbitSpeed() {
+      let speed = 0.04;
+      player.slots.forEach(slot => {
+        if (slot && slot.type === 'faster') {
+          speed += 0.02 * (slot.tier + 1);
+        }
+      });
+      return speed;
+    }
+
+    function hasPoopEquipped() {
+      return player.slots.some(s => s && s.type === 'poop');
+    }
+
+    function getDamageReduction() {
+      let reduce = 0;
+      player.slots.forEach(s => {
+        if (s && s.type === 'cotton') {
+          reduce += 0.08 * (s.tier + 1);
+        }
+      });
+      return Math.min(reduce, 0.75); // 最大减伤 75%
+    }
+
+    // 生成怪物
+    function spawnMonster() {
+      // 根据玩家等级决定怪物品质范围 (从普通到稀有随机出现，高等级玩家可以遇上更高等级怪物)
+      let maxTier = Math.min(2 + Math.floor(player.level / 2), 9);
+      let randTier = 0;
+      const roll = Math.random();
+      if (roll < 0.6) randTier = 0; // 普通
+      else if (roll < 0.85) randTier = Math.min(1, maxTier); // 罕见
+      else if (roll < 0.96) randTier = Math.min(2, maxTier); // 稀有
+      else randTier = Math.floor(Math.random() * (maxTier + 1));
+
+      const types = Object.keys(MONSTER_DEFS);
+      const chosenType = types[Math.floor(Math.random() * types.length)];
+      const def = MONSTER_DEFS[chosenType];
+
+      // 屏幕外随机边缘刷出
+      let x, y;
+      const side = Math.floor(Math.random() * 4);
+      if (side === 0) { x = Math.random() * width; y = -40; }
+      else if (side === 1) { x = width + 40; y = Math.random() * height; }
+      else if (side === 2) { x = Math.random() * width; y = height + 40; }
+      else { x = -40; y = Math.random() * height; }
+
+      const tierMultiplier = Math.pow(1.6, randTier);
+      const hp = Math.round((60 + player.level * 15) * tierMultiplier);
+
+      monsters.push({
+        x: x,
+        y: y,
+        type: chosenType,
+        tier: randTier,
+        radius: 18 + randTier * 2,
+        hp: hp,
+        maxHp: hp,
+        atk: Math.round((12 + player.level * 3) * tierMultiplier),
+        speed: 1.2 + Math.random() * 0.8,
+        rootedTime: 0,
+        def: def
+      });
+    }
+
+    // 掉落奖励处理
+    function handleMonsterDeath(m) {
+      AudioEngine.kill();
+      player.kills++;
+      
+      // 硬币掉落机制 (击败高等级怪物: 神话:10, 究极:20, 超级:40, 唯一:50, 永恒:100，神话以下不掉)
+      let coinDrop = 0;
+      if (m.tier === 5) coinDrop = 10;
+      else if (m.tier === 6) coinDrop = 20;
+      else if (m.tier === 7) coinDrop = 40;
+      else if (m.tier === 8) coinDrop = 50;
+      else if (m.tier === 9) coinDrop = 100;
+
+      if (coinDrop > 0) {
+        player.coins += coinDrop;
+        floatingTexts.push({
+          x: m.x,
+          y: m.y - 20,
+          text: `+${coinDrop} 🪙`,
+          color: '#fbbf24',
+          life: 1.2
+        });
+      }
+
+      // 等级表判定：每打死一定数量怪物升一级
+      if (player.kills >= player.killsForNextLevel) {
+        player.level++;
+        player.kills = 0;
+        player.killsForNextLevel = Math.round(player.killsForNextLevel * 1.5) + 3;
+        player.hp = getPlayerMaxHp(); // 升级回满血
+        AudioEngine.levelUp();
+        floatingTexts.push({
+          x: player.x,
+          y: player.y - 40,
+          text: `升级！LEVEL ${player.level}`,
+          color: '#60a5fa',
+          life: 1.8
+        });
+      }
+
+      // 掉落物生成机制: 等级比普通高的怪物可以掉落等级比它低的掉落物
+      const possibleDrops = m.def.drops;
+      const dropType = possibleDrops[Math.floor(Math.random() * possibleDrops.length)];
+      
+      let itemTier = 0;
+      if (m.tier > 0) {
+        // 可以掉落当前等级或比它低的等级
+        itemTier = Math.floor(Math.random() * (m.tier + 1));
+      }
+
+      droppedLoot.push({
+        x: m.x,
+        y: m.y,
+        type: dropType,
+        tier: itemTier,
+        radius: 12,
+        life: 30
+      });
+
+      // 爆炸粒子
+      for (let i = 0; i < 12; i++) {
+        particles.push({
+          x: m.x,
+          y: m.y,
+          vx: (Math.random() - 0.5) * 6,
+          vy: (Math.random() - 0.5) * 6,
+          color: RARITIES[m.tier].color,
+          radius: 3 + Math.random() * 3,
+          life: 0.6
+        });
+      }
+    }
+
+    // 拾取掉落物
+    function pickupLoot(item) {
+      const key = `${item.type}_${item.tier}`;
+      inventory[key] = (inventory[key] || 0) + 1;
+      AudioEngine.play(720, 'sine', 0.1, 0.15);
+
+      floatingTexts.push({
+        x: player.x,
+        y: player.y - 25,
+        text: `+1 [${RARITIES[item.tier].name}] ${DROP_TYPES[item.type].name}`,
+        color: RARITIES[item.tier].color,
+        life: 1.2
+      });
+
+      // 如果有空槽位，自动装备
+      const emptyIdx = player.slots.findIndex(s => s === null);
+      if (emptyIdx !== -1) {
+        equipItem(item.type, item.tier, emptyIdx);
+      }
+      saveGameProgress();
+    }
+
+    // 主更新逻辑
+    function update(dt) {
+      // 玩家移动向鼠标或触控目标
+      const dx = mouseX - player.x;
+      const dy = mouseY - player.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist > 10) {
+        player.x += (dx / dist) * player.speed;
+        player.y += (dy / dist) * player.speed;
+      }
+
+      // 约束边界
+      player.x = Math.max(player.radius, Math.min(width - player.radius, player.x));
+      player.y = Math.max(player.radius, Math.min(height - player.radius, player.y));
+
+      // 更新花瓣环绕角度
+      player.rotationAngle += getOrbitSpeed();
+
+      // 每秒生命恢复 (叶子技能)
+      healTimer += dt;
+      if (healTimer >= 1.0) {
+        healTimer = 0;
+        let healAmount = 0;
+        player.slots.forEach(s => {
+          if (s && s.type === 'leaf') {
+            healAmount += 10 * (s.tier + 1);
+          }
+        });
+        if (healAmount > 0 && player.hp < getPlayerMaxHp()) {
+          player.hp = Math.min(getPlayerMaxHp(), player.hp + healAmount);
+          floatingTexts.push({
+            x: player.x,
+            y: player.y - 30,
+            text: `+${healAmount} HP`,
+            color: '#4ade80',
+            life: 0.8
+          });
+        }
+      }
+
+      // 导弹自动射出 (导弹技能)
+      missileTimer += dt;
+      if (missileTimer >= 1.6) {
+        missileTimer = 0;
+        player.slots.forEach(s => {
+          if (s && s.type === 'missile') {
+            // 寻找最近的怪物发射
+            if (monsters.length > 0) {
+              let nearest = monsters[0];
+              let minDist = 99999;
+              monsters.forEach(m => {
+                const d = Math.hypot(m.x - player.x, m.y - player.y);
+                if (d < minDist) { minDist = d; nearest = m; }
+              });
+              const mAng = Math.atan2(nearest.y - player.y, nearest.x - player.x);
+              projectiles.push({
+                x: player.x,
+                y: player.y,
+                vx: Math.cos(mAng) * 7.5,
+                vy: Math.sin(mAng) * 7.5,
+                tier: s.tier,
+                atk: (40 + player.level * 8) * (s.tier + 1),
+                life: 3.0
+              });
+              AudioEngine.shoot();
+            }
+          }
+        });
+      }
+
+      // 怪物生成计时
+      spawnTimer += dt;
+      if (spawnTimer >= Math.max(0.6, 2.0 - player.level * 0.1)) {
+        spawnTimer = 0;
+        if (monsters.length < 18 + player.level * 2) {
+          spawnMonster();
+        }
+      }
+
+      // 更新导弹飞弹
+      for (let i = projectiles.length - 1; i >= 0; i--) {
+        const p = projectiles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= dt;
+
+        // 碰撞怪物
+        for (let j = monsters.length - 1; j >= 0; j--) {
+          const m = monsters[j];
+          if (Math.hypot(p.x - m.x, p.y - m.y) < m.radius + 8) {
+            m.hp -= p.atk;
+            AudioEngine.hit();
+            floatingTexts.push({ x: m.x, y: m.y - 15, text: `-${p.atk}`, color: '#f87171', life: 0.6 });
+            p.life = 0;
+            if (m.hp <= 0) {
+              handleMonsterDeath(m);
+              monsters.splice(j, 1);
+            }
+            break;
+          }
+        }
+        if (p.life <= 0) projectiles.splice(i, 1);
+      }
+
+      // 更新怪物
+      const poopEquipped = hasPoopEquipped();
+      for (let i = monsters.length - 1; i >= 0; i--) {
+        const m = monsters[i];
+        
+        // 冰冻/定身 (网技能)
+        if (m.rootedTime > 0) {
+          m.rootedTime -= dt;
+        } else {
+          const mDist = Math.hypot(player.x - m.x, player.y - m.y);
+          // 粑粑技能: 在一定范围(>220px)之外的怪物不会攻击你
+          if (!poopEquipped || mDist < 220) {
+            const angle = Math.atan2(player.y - m.y, player.x - m.x);
+            m.x += Math.cos(angle) * m.speed;
+            m.y += Math.sin(angle) * m.speed;
+          }
+        }
+
+        // 怪物与玩家花瓣碰撞检测
+        const slotCount = 6;
+        for (let sIdx = 0; sIdx < slotCount; sIdx++) {
+          const slot = player.slots[sIdx];
+          if (!slot) continue;
+
+          const petalAngle = player.rotationAngle + (sIdx * (Math.PI * 2 / slotCount));
+          const petalDist = player.radius + 36;
+          const px = player.x + Math.cos(petalAngle) * petalDist;
+          const py = player.y + Math.sin(petalAngle) * petalDist;
+
+          if (Math.hypot(px - m.x, py - m.y) < m.radius + 14) {
+            // 计算花瓣伤害
+            let petalDamage = getPlayerAtk();
+            if (slot.type === 'stinger') {
+              petalDamage = 220 * (slot.tier + 1); // 刺的攻击力高达220
+            }
+            m.hp -= petalDamage;
+            AudioEngine.hit();
+            floatingTexts.push({ x: m.x, y: m.y - 12, text: `-${petalDamage}`, color: RARITIES[slot.tier].color, life: 0.5 });
+
+            // 网的效果：粘住2秒
+            if (slot.type === 'web') {
+              m.rootedTime = 2.0;
+              floatingTexts.push({ x: m.x, y: m.y - 26, text: `定身 2秒!`, color: '#60a5fa', life: 0.8 });
+            }
+
+            // 刺的生命值只有1，命中后损毁卸下
+            if (slot.type === 'stinger') {
+              player.slots[sIdx] = null;
+              updateSlotsBarUI();
+              floatingTexts.push({ x: player.x, y: player.y - 20, text: `刺已破损`, color: '#94a3b8', life: 0.8 });
+            }
+
+            // 反弹位移
+            m.x -= Math.cos(petalAngle) * 16;
+            m.y -= Math.sin(petalAngle) * 16;
+
+            if (m.hp <= 0) {
+              handleMonsterDeath(m);
+              monsters.splice(i, 1);
+              break;
+            }
+          }
+        }
+
+        // 怪物与玩家本体碰撞
+        if (i < monsters.length) {
+          const bodyDist = Math.hypot(player.x - m.x, player.y - m.y);
+          if (bodyDist < player.radius + m.radius) {
+            // 扣除玩家血量 (减伤机制: 棉花)
+            const rawDmg = m.atk * (1 - getDamageReduction());
+            const realDmg = Math.max(1, Math.round(rawDmg));
+            player.hp -= realDmg;
+            AudioEngine.hit();
+
+            floatingTexts.push({ x: player.x, y: player.y - 15, text: `-${realDmg}`, color: '#ef4444', life: 0.6 });
+
+            // 反弹怪物
+            const bAng = Math.atan2(m.y - player.y, m.x - player.x);
+            m.x += Math.cos(bAng) * 20;
+            m.y += Math.sin(bAng) * 20;
+
+            if (player.hp <= 0) {
+              handlePlayerDeath();
+              return;
+            }
+          }
+        }
+      }
+
+      // 掉落物靠近吸引与拾取
+      for (let i = droppedLoot.length - 1; i >= 0; i--) {
+        const item = droppedLoot[i];
+        const dist = Math.hypot(player.x - item.x, player.y - item.y);
+        if (dist < 120) {
+          // 磁力吸附
+          const a = Math.atan2(player.y - item.y, player.x - item.x);
+          item.x += Math.cos(a) * 6.5;
+          item.y += Math.sin(a) * 6.5;
+        }
+        if (dist < player.radius + item.radius) {
+          pickupLoot(item);
+          droppedLoot.splice(i, 1);
+        }
+      }
+
+      // 更新粒子与漂浮文字
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life -= dt;
+        if (p.life <= 0) particles.splice(i, 1);
+      }
+      for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        const t = floatingTexts[i];
+        t.y -= 25 * dt;
+        t.life -= dt;
+        if (t.life <= 0) floatingTexts.splice(i, 1);
+      }
+
+      // 更新 HUD
+      updateHud();
+    }
+
+    // 玩家死亡处理
+    function handlePlayerDeath() {
+      document.getElementById('death-level').innerText = player.level;
+      document.getElementById('death-kills').innerText = player.kills;
+      document.getElementById('death-overlay').style.display = 'flex';
+      saveGameProgress();
+    }
+
+    function handleRespawn() {
+      document.getElementById('death-overlay').style.display = 'none';
+      player.hp = getPlayerMaxHp();
+      player.x = width / 2;
+      player.y = height / 2;
+      monsters = [];
+      droppedLoot = [];
+      projectiles = [];
+    }
+
+    function handleLeaveGame() {
+      document.getElementById('death-overlay').style.display = 'none';
+      document.getElementById('login-overlay').style.display = 'flex';
+    }
+
+    /* ==========================================================================
+       渲染系统 (Canvas 绘制)
+       ========================================================================== */
+
+    function render() {
+      ctx.clearRect(0, 0, width, height);
+
+      // 绘制背景 (支持太空/海洋/默认网格)
+      drawBackground();
+
+      // 绘制掉落物 (地面)
+      droppedLoot.forEach(item => {
+        const def = DROP_TYPES[item.type];
+        const rColor = RARITIES[item.tier].color;
+        
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(item.x, item.y, item.radius, 0, Math.PI * 2);
+        ctx.fillStyle = rColor;
+        ctx.shadowColor = rColor;
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#fff';
+        ctx.stroke();
+
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(def.icon, item.x, item.y);
+        ctx.restore();
+      });
+
+      // 绘制飞弹
+      projectiles.forEach(p => {
+        ctx.save();
+        ctx.fillStyle = RARITIES[p.tier].color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // 绘制怪物
+      monsters.forEach(m => {
+        drawMonster(m);
+      });
+
+      // 绘制玩家及花瓣
+      drawPlayer();
+
+      // 绘制粒子
+      particles.forEach(p => {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, p.life);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      });
+
+      // 绘制浮动文字
+      floatingTexts.forEach(t => {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, t.life);
+        ctx.fillStyle = t.color;
+        ctx.font = 'bold 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto';
+        ctx.textAlign = 'center';
+        ctx.shadowColor = '#000';
+        ctx.shadowBlur = 4;
+        ctx.fillText(t.text, t.x, t.y);
+        ctx.restore();
+      });
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    function drawBackground() {
+      if (player.theme === 'theme_space') {
+        ctx.fillStyle = '#090a0f';
+        ctx.fillRect(0, 0, width, height);
+        // 星光
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+        for (let i = 0; i < 60; i++) {
+          const sx = (i * 123) % width;
+          const sy = (i * 456) % height;
+          ctx.fillRect(sx, sy, 2, 2);
+        }
+      } else if (player.theme === 'theme_ocean') {
+        ctx.fillStyle = '#0f3a57';
+        ctx.fillRect(0, 0, width, height);
+      } else {
+        // 经典网格
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(0, 0, width, height);
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 1;
+        const gridSize = 50;
+        ctx.beginPath();
+        for (let x = 0; x < width; x += gridSize) {
+          ctx.moveTo(x, 0); ctx.lineTo(x, height);
+        }
+        for (let y = 0; y < height; y += gridSize) {
+          ctx.moveTo(0, y); ctx.lineTo(width, y);
+        }
+        ctx.stroke();
+      }
+    }
+
+    function drawPlayer() {
+      // 1. 绘制围绕玩家的花瓣
+      const slotCount = 6;
+      for (let i = 0; i < slotCount; i++) {
+        const slot = player.slots[i];
+        const petalAngle = player.rotationAngle + (i * (Math.PI * 2 / slotCount));
+        const petalDist = player.radius + 36;
+        const px = player.x + Math.cos(petalAngle) * petalDist;
+        const py = player.y + Math.sin(petalAngle) * petalDist;
+
+        ctx.save();
+        if (slot) {
+          const rColor = RARITIES[slot.tier].color;
+          ctx.beginPath();
+          ctx.arc(px, py, 15, 0, Math.PI * 2);
+          ctx.fillStyle = rColor;
+          ctx.shadowColor = rColor;
+          ctx.shadowBlur = 12;
+          ctx.fill();
+          ctx.lineWidth = 2.5;
+          ctx.strokeStyle = '#fff';
+          ctx.stroke();
+
+          ctx.font = '16px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(DROP_TYPES[slot.type].icon, px, py);
+        } else {
+          // 空槽位虚线圆
+          ctx.beginPath();
+          ctx.arc(px, py, 10, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+          ctx.setLineDash([3, 3]);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      // 2. 绘制玩家本体 (绿色笑脸)
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+      
+      // 皮肤颜色
+      if (player.skin === 'skin_alien') ctx.fillStyle = '#10b981';
+      else if (player.skin === 'skin_fat') ctx.fillStyle = '#fbbf24';
+      else if (player.skin === 'skin_king') ctx.fillStyle = '#a855f7';
+      else ctx.fillStyle = '#22c55e'; // 经典翠绿笑脸
+
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#15803d';
+      ctx.stroke();
+
+      // 眼睛
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(player.x - 8, player.y - 6, 4, 0, Math.PI * 2);
+      ctx.arc(player.x + 8, player.y - 6, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 迷人笑脸 (微笑弧线)
+      ctx.beginPath();
+      ctx.arc(player.x, player.y + 4, 12, 0.2 * Math.PI, 0.8 * Math.PI, false);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineCap = 'round';
+      ctx.stroke();
+
+      // 如果是国王皮肤，头顶王冠
+      if (player.skin === 'skin_king') {
+        ctx.font = '16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('👑', player.x, player.y - 26);
+      }
+      ctx.restore();
+    }
+
+    // 绘制 5 种形态特异的怪物 (根据文档精确还原外观)
+    function drawMonster(m) {
+      ctx.save();
+      const rColor = RARITIES[m.tier].color;
+
+      // 血条
+      const barW = m.radius * 2;
+      const barH = 5;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(m.x - m.radius, m.y - m.radius - 12, barW, barH);
+      ctx.fillStyle = rColor;
+      ctx.fillRect(m.x - m.radius, m.y - m.radius - 12, (m.hp / m.maxHp) * barW, barH);
+
+      if (m.type === 'spider') {
+        // 蜘蛛：黑圆球，外面伸出六只弯曲的脚
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 3;
+        for (let i = 0; i < 6; i++) {
+          const ang = (i / 6) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.moveTo(m.x, m.y);
+          const midX = m.x + Math.cos(ang) * (m.radius + 10);
+          const midY = m.y + Math.sin(ang) * (m.radius + 10);
+          const endX = midX + Math.cos(ang + 0.4) * 12;
+          const endY = midY + Math.sin(ang + 0.4) * 12;
+          ctx.quadraticCurveTo(midX, midY, endX, endY);
+          ctx.stroke();
+        }
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, m.radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#0f172a';
+        ctx.fill();
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = rColor;
+        ctx.stroke();
+      } else if (m.type === 'dandelion') {
+        // 蒲公英：白色的球外面有一些白色的导弹
+        for (let i = 0; i < 8; i++) {
+          const ang = (i / 8) * Math.PI * 2;
+          const px = m.x + Math.cos(ang) * (m.radius + 8);
+          const py = m.y + Math.sin(ang) * (m.radius + 8);
+          ctx.beginPath();
+          ctx.arc(px, py, 4, 0, Math.PI * 2);
+          ctx.fillStyle = '#f8fafc';
+          ctx.fill();
+        }
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, m.radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#e2e8f0';
+        ctx.fill();
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = rColor;
+        ctx.stroke();
+      } else if (m.type === 'caterpillar') {
+        // 毛毛虫：一些黄色的球，最前面的黄色的球有一对触角
+        for (let i = 2; i >= 1; i--) {
+          ctx.beginPath();
+          ctx.arc(m.x - i * 10, m.y, m.radius * 0.8, 0, Math.PI * 2);
+          ctx.fillStyle = '#facc15';
+          ctx.fill();
+        }
+        // 头
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, m.radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#eab308';
+        ctx.fill();
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = rColor;
+        ctx.stroke();
+        // 触角
+        ctx.strokeStyle = '#854d0e';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(m.x + 4, m.y - 8); ctx.lineTo(m.x + 12, m.y - 18);
+        ctx.moveTo(m.x - 4, m.y - 8); ctx.lineTo(m.x - 12, m.y - 18);
+        ctx.stroke();
+      } else if (m.type === 'bee') {
+        // 蜜蜂：黄色的椭圆形有黑白相间的纹路
+        ctx.beginPath();
+        ctx.ellipse(m.x, m.y, m.radius * 1.2, m.radius * 0.8, 0, 0, Math.PI * 2);
+        ctx.fillStyle = '#eab308';
+        ctx.fill();
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = rColor;
+        ctx.stroke();
+        // 黑白纹理
+        ctx.strokeStyle = '#1e293b';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(m.x - 5, m.y - m.radius * 0.7); ctx.lineTo(m.x - 5, m.y + m.radius * 0.7);
+        ctx.moveTo(m.x + 5, m.y - m.radius * 0.7); ctx.lineTo(m.x + 5, m.y + m.radius * 0.7);
+        ctx.stroke();
+      } else if (m.type === 'mosquito') {
+        // 蚊子：黑色的球，尖嘴
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, m.radius, 0, Math.PI * 2);
+        ctx.fillStyle = '#020617';
+        ctx.fill();
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = rColor;
+        ctx.stroke();
+        // 细长吸管嘴
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(m.x + m.radius, m.y); ctx.lineTo(m.x + m.radius + 12, m.y);
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    function gameLoop(now) {
+      const dt = Math.min((now - lastTime) / 1000, 0.1);
+      lastTime = now;
+      update(dt);
+      render();
+    }
+
+    /* ==========================================================================
+       UI 界面响应与装备、合成系统
+       ========================================================================== */
+
+    function updateHud() {
+      document.getElementById('ui-level').innerText = player.level;
+      document.getElementById('ui-hp').innerText = Math.max(0, Math.round(player.hp));
+      document.getElementById('ui-max-hp').innerText = getPlayerMaxHp();
+      document.getElementById('ui-atk').innerText = getPlayerAtk();
+      document.getElementById('ui-kills').innerText = player.kills;
+      document.getElementById('ui-coins').innerText = player.coins;
+
+      const expPct = Math.min(100, Math.round((player.kills / player.killsForNextLevel) * 100));
+      document.getElementById('ui-exp-fill').style.width = expPct + '%';
+    }
+
+    function updateSlotsBarUI() {
+      for (let i = 0; i < 6; i++) {
+        const slotEl = document.getElementById(`slot-${i}`);
+        const item = player.slots[i];
+        if (item) {
+          slotEl.classList.add('has-item');
+          slotEl.style.borderColor = RARITIES[item.tier].color;
+          slotEl.innerHTML = `
+            <span class="slot-idx">${i + 1}</span>
+            <div class="item-icon">${DROP_TYPES[item.type].icon}</div>
+            <div class="item-name" style="color:${RARITIES[item.tier].color}">${DROP_TYPES[item.type].name}</div>
+          `;
+        } else {
+          slotEl.classList.remove('has-item');
+          slotEl.style.borderColor = '#64748b';
+          slotEl.innerHTML = `<span class="slot-idx">${i + 1}</span>`;
+        }
+      }
+    }
+
+    function handleSlotClick(idx) {
+      const item = player.slots[idx];
+      if (item) {
+        // 卸下装备返回背包
+        const key = `${item.type}_${item.tier}`;
+        inventory[key] = (inventory[key] || 0) + 1;
+        player.slots[idx] = null;
+        updateSlotsBarUI();
+        AudioEngine.play(360, 'sine', 0.1, 0.1);
+        saveGameProgress();
+      }
+    }
+
+    function equipItem(type, tier, slotIdx) {
+      const key = `${type}_${tier}`;
+      if (!inventory[key] || inventory[key] <= 0) return;
+
+      // 如果该槽位有装备，先回退
+      if (player.slots[slotIdx]) {
+        const old = player.slots[slotIdx];
+        const oldKey = `${old.type}_${old.tier}`;
+        inventory[oldKey] = (inventory[oldKey] || 0) + 1;
+      }
+
+      inventory[key]--;
+      if (inventory[key] === 0) delete inventory[key];
+
+      player.slots[slotIdx] = { type, tier };
+      updateSlotsBarUI();
+      saveGameProgress();
+    }
+
+    /* --- 背包弹窗 --- */
+    function openInventoryModal() {
+      const container = document.getElementById('inv-container');
+      container.innerHTML = '';
+
+      const keys = Object.keys(inventory);
+      if (keys.length === 0) {
+        container.innerHTML = '<p style="color:#64748b; font-size:14px; grid-column: 1 / -1; text-align:center; padding:20px;">背包空空如也，快去击败怪物收集掉落物吧！</p>';
+      } else {
+        keys.forEach(key => {
+          const [type, tierStr] = key.split('_');
+          const tier = parseInt(tierStr);
+          const count = inventory[key];
+          const def = DROP_TYPES[type];
+          const rColor = RARITIES[tier].color;
+
+          const card = document.createElement('div');
+          card.className = 'inv-card';
+          card.style.borderColor = rColor;
+          card.innerHTML = `
+            <div class="card-count">x${count}</div>
+            <div class="card-icon">${def.icon}</div>
+            <div class="card-name">${def.name}</div>
+            <div class="card-tier" style="background:${rColor}; color:#000;">${RARITIES[tier].name}</div>
+          `;
+          card.onclick = () => {
+            const emptyIdx = player.slots.findIndex(s => s === null);
+            if (emptyIdx !== -1) {
+              equipItem(type, tier, emptyIdx);
+              openInventoryModal(); // 刷新背包
+            } else {
+              alert('底部6个装备槽已满，请先点击已装备的槽位卸下！');
+            }
+          };
+          container.appendChild(card);
+        });
+      }
+      document.getElementById('inv-modal').style.display = 'flex';
+    }
+
+    /* --- 合成系统 (左中橙色标识) --- */
+    function openCraftModal() {
+      const candidates = document.getElementById('craft-candidates');
+      candidates.innerHTML = '';
+      document.getElementById('craft-detail').style.display = 'none';
+      document.getElementById('craft-result-msg').innerText = '';
+
+      let foundEligible = false;
+      Object.keys(inventory).forEach(key => {
+        const [type, tierStr] = key.split('_');
+        const tier = parseInt(tierStr);
+        const count = inventory[key];
+
+        // 拥有 6 个同品质同类型，且品质小于永恒(9)
+        if (count >= 6 && tier < 9) {
+          foundEligible = true;
+          const def = DROP_TYPES[type];
+          const rColor = RARITIES[tier].color;
+
+          const btn = document.createElement('div');
+          btn.className = 'inv-card';
+          btn.style.borderColor = rColor;
+          btn.innerHTML = `
+            <div class="card-count">${count}/6</div>
+            <div class="card-icon">${def.icon}</div>
+            <div class="card-name">${def.name}</div>
+            <div class="card-tier" style="background:${rColor}; color:#000;">${RARITIES[tier].name}</div>
+          `;
+          btn.onclick = () => selectCraftItem(type, tier);
+          candidates.appendChild(btn);
+        }
+      });
+
+      if (!foundEligible) {
+        candidates.innerHTML = '<p style="color:#64748b; font-size:14px; padding:20px;">没有满足条件的物品。你需要收集 <strong>6个同等级同类型</strong> 的掉落物才能进行合成！</p>';
+      }
+
+      document.getElementById('craft-modal').style.display = 'flex';
+    }
+
+    function selectCraftItem(type, tier) {
+      selectedCraftItem = { type, tier };
+      const currentRarity = RARITIES[tier];
+      const nextRarity = RARITIES[tier + 1];
+      const prob = currentRarity.craftProb;
+
+      const detail = document.getElementById('craft-detail');
+      detail.style.display = 'block';
+      document.getElementById('craft-name-prob').innerText = `${currentRarity.name} ➔ ${nextRarity.name} (概率 ${prob}%)`;
+      document.getElementById('craft-name-prob').style.background = nextRarity.color;
+      document.getElementById('craft-hint').innerText = `将消耗 6 个 [${currentRarity.name}] ${DROP_TYPES[type].name}，尝试进阶为 [${nextRarity.name}]！`;
+    }
+
+    function executeCraft() {
+      if (!selectedCraftItem) return;
+      const { type, tier } = selectedCraftItem;
+      const key = `${type}_${tier}`;
+      if (!inventory[key] || inventory[key] < 6) {
+        alert('物品数量不足 6 个！');
+        return;
+      }
+
+      // 扣除 6 个原料
+      inventory[key] -= 6;
+      if (inventory[key] === 0) delete inventory[key];
+
+      const prob = RARITIES[tier].craftProb;
+      const roll = Math.random() * 100;
+      const resultMsg = document.getElementById('craft-result-msg');
+
+      if (roll <= prob) {
+        // 合成成功
+        const newTier = tier + 1;
+        const newKey = `${type}_${newTier}`;
+        inventory[newKey] = (inventory[newKey] || 0) + 1;
+        AudioEngine.craftSuccess();
+        resultMsg.style.color = '#22c55e';
+        resultMsg.innerText = `🎉 恭喜！融合成功！获得 [${RARITIES[newTier].name}] ${DROP_TYPES[type].name}！`;
+      } else {
+        // 合成失败
+        AudioEngine.craftFail();
+        resultMsg.style.color = '#ef4444';
+        resultMsg.innerText = `💥 合成失败，6 个原料化为了灰烬... 不要气馁！`;
+      }
+
+      saveGameProgress();
+      openCraftModal(); // 刷新可选项目
+    }
+
+    /* --- 商城与皮肤、掉落物购买 --- */
+    function openShopModal() {
+      document.getElementById('shop-modal').style.display = 'flex';
+    }
+
+    function switchShopTab(tab) {
+      document.querySelectorAll('.shop-tab').forEach(t => t.classList.remove('active'));
+      event.target.classList.add('active');
+
+      document.getElementById('shop-tab-skins').style.display = tab === 'skins' ? 'grid' : 'none';
+      document.getElementById('shop-tab-drops').style.display = tab === 'drops' ? 'grid' : 'none';
+      document.getElementById('shop-tab-coins').style.display = tab === 'coins' ? 'grid' : 'none';
+    }
+
+    function buyShopItem(itemKey, cost) {
+      if (player.coins < cost) {
+        alert('硬币不足！快去击败高阶怪物或在充值中心购买硬币吧！');
+        return;
+      }
+      player.coins -= cost;
+      if (itemKey.startsWith('theme_')) player.theme = itemKey;
+      if (itemKey.startsWith('skin_')) player.skin = itemKey;
+      AudioEngine.craftSuccess();
+      alert('购买成功并已立即装备！');
+      saveGameProgress();
+    }
+
+    function buyDropItem(type, tier, cost) {
+      if (player.coins < cost) {
+        alert('硬币不足！');
+        return;
+      }
+      player.coins -= cost;
+      const key = `${type}_${tier}`;
+      inventory[key] = (inventory[key] || 0) + 1;
+      AudioEngine.craftSuccess();
+      alert(`成功购买 1 个 [${RARITIES[tier].name}] ${DROP_TYPES[type].name}！已存入背包。`);
+      saveGameProgress();
+    }
+
+    function rechargeCoins(amount, priceRmb) {
+      player.coins += amount;
+      AudioEngine.craftSuccess();
+      alert(`模拟充值成功！支付 ¥${priceRmb}，已获得 ${amount} 个金币！`);
+      saveGameProgress();
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).style.display = 'none';
+    }
+
+    /* ==========================================================================
+       账户体系与进度存储 (LocalStorage)
+       ========================================================================== */
+
+    function switchAuthState(state) {
+      document.getElementById('auth-state-login').style.display = state === 'login' ? 'block' : 'none';
+      document.getElementById('auth-state-register1').style.display = state === 'register-step1' ? 'block' : 'none';
+      document.getElementById('auth-state-register2').style.display = state === 'register-step2' ? 'block' : 'none';
+    }
+
+    let tempRegUser = '';
+    let tempRegInitPwd = '';
+
+    function handleRegisterContinue() {
+      const u = document.getElementById('reg-user').value.trim();
+      const p = document.getElementById('reg-init-pwd').value.trim();
+      if (!u || !p) {
+        alert('请完整填写账号与初始密码！');
+        return;
+      }
+      tempRegUser = u;
+      tempRegInitPwd = p;
+      switchAuthState('register-step2');
+    }
+
+    function handleRegisterComplete() {
+      const b1 = document.getElementById('reg-box1').value.trim();
+      const b2 = document.getElementById('reg-box2').value.trim();
+      const b3 = document.getElementById('reg-box3').value.trim();
+
+      if (!b1 || !b2 || !b3) {
+        alert('请在三个格子中输入密码完成验证！');
+        return;
+      }
+      if (b2 !== b3) {
+        alert('第二格新密码与第三格确认新密码不一致！');
+        return;
+      }
+
+      // 保存新用户数据
+      const accounts = JSON.parse(localStorage.getItem('zorr_accounts') || '{}');
+      accounts[tempRegUser] = {
+        password: b2,
+        saveData: {
+          level: 1,
+          coins: 100,
+          inventory: { 'web_0': 6, 'faster_0': 6, 'leaf_0': 6 },
+          slots: [null, null, null, null, null, null],
+          theme: 'default',
+          skin: 'default'
+        }
+      };
+      localStorage.setItem('zorr_accounts', JSON.stringify(accounts));
+      alert('账号注册成功！正在为您自动登录...');
+
+      currentUser = tempRegUser;
+      isGuest = false;
+      loadGameProgress(accounts[tempRegUser].saveData);
+      document.getElementById('login-overlay').style.display = 'none';
+    }
+
+    function handleLogin() {
+      const u = document.getElementById('login-user').value.trim();
+      const p = document.getElementById('login-pwd').value.trim();
+
+      const accounts = JSON.parse(localStorage.getItem('zorr_accounts') || '{}');
+      // 内置怀谦默认账户 william / 8888
+      if (!accounts['william']) {
+        accounts['william'] = {
+          password: '8888',
+          saveData: {
+            level: 3,
+            coins: 300,
+            inventory: { 'web_0': 12, 'faster_0': 12, 'leaf_1': 4, 'stinger_1': 2 },
+            slots: [{ type:'leaf', tier:0 }, { type:'faster', tier:0 }, null, null, null, null],
+            theme: 'default',
+            skin: 'default'
+          }
+        };
+        localStorage.setItem('zorr_accounts', JSON.stringify(accounts));
+      }
+
+      if (accounts[u] && accounts[u].password === p) {
+        currentUser = u;
+        isGuest = false;
+        loadGameProgress(accounts[u].saveData);
+        document.getElementById('login-overlay').style.display = 'none';
+      } else {
+        alert('账号或密码不正确！如无账号请点击右下角“创建一个账户”。');
+      }
+    }
+
+    function startGuestPlay() {
+      currentUser = null;
+      isGuest = true;
+      document.getElementById('login-overlay').style.display = 'none';
+      updateSlotsBarUI();
+    }
+
+    function saveGameProgress() {
+      if (isGuest || !currentUser) return; // 游客模式不保存进度
+      const accounts = JSON.parse(localStorage.getItem('zorr_accounts') || '{}');
+      if (accounts[currentUser]) {
+        accounts[currentUser].saveData = {
+          level: player.level,
+          coins: player.coins,
+          inventory: inventory,
+          slots: player.slots,
+          theme: player.theme,
+          skin: player.skin
+        };
+        localStorage.setItem('zorr_accounts', JSON.stringify(accounts));
+      }
+    }
+
+    function loadGameProgress(data) {
+      if (!data) return;
+      player.level = data.level || 1;
+      player.coins = data.coins || 0;
+      player.theme = data.theme || 'default';
+      player.skin = data.skin || 'default';
+      player.hp = getPlayerMaxHp();
+      if (data.inventory) inventory = data.inventory;
+      if (data.slots) player.slots = data.slots;
+      updateSlotsBarUI();
+    }
+
+    // 启动游戏引擎
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>
