@@ -1159,7 +1159,7 @@
         y: y,
         type: chosenType,
         tier: randTier,
-        radius: 18 + randTier * 2,
+        radius: 16 + randTier * 5, // 每高一个等级体型显著增大 (16 -> 61)
         hp: hp,
         maxHp: hp,
         atk: Math.round((12 + player.level * 3) * tierMultiplier),
@@ -1709,13 +1709,14 @@
       ctx.save();
       const rColor = RARITIES[m.tier].color;
 
-      // 血条
-      const barW = m.radius * 2;
-      const barH = 5;
+      // 血条 (根据体型自适应位置与高度)
+      const barW = m.radius * 2.2;
+      const barH = Math.max(5, m.radius * 0.14);
+      const barOffset = m.radius + 12;
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
-      ctx.fillRect(m.x - m.radius, m.y - m.radius - 12, barW, barH);
+      ctx.fillRect(m.x - barW / 2, m.y - barOffset, barW, barH);
       ctx.fillStyle = rColor;
-      ctx.fillRect(m.x - m.radius, m.y - m.radius - 12, (m.hp / m.maxHp) * barW, barH);
+      ctx.fillRect(m.x - barW / 2, m.y - barOffset, (m.hp / m.maxHp) * barW, barH);
 
       if (m.type === 'spider') {
         // 蜘蛛：黑圆球，外面伸出六只弯曲的脚
@@ -1725,10 +1726,10 @@
           const ang = (i / 6) * Math.PI * 2;
           ctx.beginPath();
           ctx.moveTo(m.x, m.y);
-          const midX = m.x + Math.cos(ang) * (m.radius + 10);
-          const midY = m.y + Math.sin(ang) * (m.radius + 10);
-          const endX = midX + Math.cos(ang + 0.4) * 12;
-          const endY = midY + Math.sin(ang + 0.4) * 12;
+          const midX = m.x + Math.cos(ang) * (m.radius * 1.5);
+          const midY = m.y + Math.sin(ang) * (m.radius * 1.5);
+          const endX = midX + Math.cos(ang + 0.4) * (m.radius * 0.6);
+          const endY = midY + Math.sin(ang + 0.4) * (m.radius * 0.6);
           ctx.quadraticCurveTo(midX, midY, endX, endY);
           ctx.stroke();
         }
@@ -1743,10 +1744,10 @@
         // 蒲公英：白色的球外面有一些白色的导弹
         for (let i = 0; i < 8; i++) {
           const ang = (i / 8) * Math.PI * 2;
-          const px = m.x + Math.cos(ang) * (m.radius + 8);
-          const py = m.y + Math.sin(ang) * (m.radius + 8);
+          const px = m.x + Math.cos(ang) * (m.radius + m.radius * 0.35);
+          const py = m.y + Math.sin(ang) * (m.radius + m.radius * 0.35);
           ctx.beginPath();
-          ctx.arc(px, py, 4, 0, Math.PI * 2);
+          ctx.arc(px, py, Math.max(3, m.radius * 0.18), 0, Math.PI * 2);
           ctx.fillStyle = '#f8fafc';
           ctx.fill();
         }
@@ -1761,7 +1762,7 @@
         // 毛毛虫：一些黄色的球，最前面的黄色的球有一对触角
         for (let i = 2; i >= 1; i--) {
           ctx.beginPath();
-          ctx.arc(m.x - i * 10, m.y, m.radius * 0.8, 0, Math.PI * 2);
+          ctx.arc(m.x - i * (m.radius * 0.55), m.y, m.radius * 0.8, 0, Math.PI * 2);
           ctx.fillStyle = '#facc15';
           ctx.fill();
         }
@@ -1775,10 +1776,10 @@
         ctx.stroke();
         // 触角
         ctx.strokeStyle = '#854d0e';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = Math.max(2, m.radius * 0.08);
         ctx.beginPath();
-        ctx.moveTo(m.x + 4, m.y - 8); ctx.lineTo(m.x + 12, m.y - 18);
-        ctx.moveTo(m.x - 4, m.y - 8); ctx.lineTo(m.x - 12, m.y - 18);
+        ctx.moveTo(m.x + m.radius * 0.2, m.y - m.radius * 0.4); ctx.lineTo(m.x + m.radius * 0.6, m.y - m.radius * 0.9);
+        ctx.moveTo(m.x - m.radius * 0.2, m.y - m.radius * 0.4); ctx.lineTo(m.x - m.radius * 0.6, m.y - m.radius * 0.9);
         ctx.stroke();
       } else if (m.type === 'bee') {
         // 蜜蜂：黄色的椭圆形有黑白相间的纹路
@@ -1791,10 +1792,10 @@
         ctx.stroke();
         // 黑白纹理
         ctx.strokeStyle = '#1e293b';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = Math.max(3, m.radius * 0.1);
         ctx.beginPath();
-        ctx.moveTo(m.x - 5, m.y - m.radius * 0.7); ctx.lineTo(m.x - 5, m.y + m.radius * 0.7);
-        ctx.moveTo(m.x + 5, m.y - m.radius * 0.7); ctx.lineTo(m.x + 5, m.y + m.radius * 0.7);
+        ctx.moveTo(m.x - m.radius * 0.25, m.y - m.radius * 0.7); ctx.lineTo(m.x - m.radius * 0.25, m.y + m.radius * 0.7);
+        ctx.moveTo(m.x + m.radius * 0.25, m.y - m.radius * 0.7); ctx.lineTo(m.x + m.radius * 0.25, m.y + m.radius * 0.7);
         ctx.stroke();
       } else if (m.type === 'mosquito') {
         // 蚊子：黑色的球，尖嘴
@@ -1807,9 +1808,9 @@
         ctx.stroke();
         // 细长吸管嘴
         ctx.strokeStyle = '#000';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = Math.max(2, m.radius * 0.08);
         ctx.beginPath();
-        ctx.moveTo(m.x + m.radius, m.y); ctx.lineTo(m.x + m.radius + 12, m.y);
+        ctx.moveTo(m.x + m.radius, m.y); ctx.lineTo(m.x + m.radius + m.radius * 0.6, m.y);
         ctx.stroke();
       }
 
